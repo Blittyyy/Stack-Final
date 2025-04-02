@@ -41,66 +41,123 @@ document.addEventListener('keydown', (e) => {
   }
   
   // If in copy mode and a key is pressed (not a control key)
-  if (isCopyMode && !e.ctrlKey && !e.altKey && !e.metaKey) {
-    const selectedText = window.getSelection().toString();
+  if (isCopyMode && !e.ctrlKey && !e.altKey && !e.metaKey && 
+      !['Control', 'Alt', 'Meta', 'Shift'].includes(e.key)) {
+    
+    const selectedText = window.getSelection().toString().trim();
+    
     if (selectedText) {
       chrome.runtime.sendMessage({
         action: "saveClip",
         key: e.key,
         text: selectedText
       }, (response) => {
-        if (response.success) {
+        if (response && response.success) {
           showNotification(`Copied to key: ${e.key}`);
         }
       });
+    } else {
+      showNotification("No text selected");
     }
+    
     isCopyMode = false;
     if (copyModeTimer) {
       clearTimeout(copyModeTimer);
       copyModeTimer = null;
     }
+    e.preventDefault();
   }
   
   // If in paste mode and a key is pressed (not a control key)
-  if (isPasteMode && !e.ctrlKey && !e.altKey && !e.metaKey) {
+  if (isPasteMode && !e.ctrlKey && !e.altKey && !e.metaKey && 
+      !['Control', 'Alt', 'Meta', 'Shift'].includes(e.key)) {
+    
     chrome.runtime.sendMessage({
       action: "getClip",
       key: e.key
     }, (response) => {
-      if (response.text) {
+      if (response && response.text) {
         pasteText(response.text);
         showNotification(`Pasted from key: ${e.key}`);
       } else {
         showNotification(`No text found for key: ${e.key}`);
       }
     });
+    
     isPasteMode = false;
     if (pasteModeTimer) {
       clearTimeout(pasteModeTimer);
       pasteModeTimer = null;
     }
+    e.preventDefault();
   }
 });
 
+// Improved paste function that works in different contexts
 function pasteText(text) {
-  // Create a contenteditable element
-  const el = document.createElement('div');
-  el.contentEditable = true;
-  el.style.position = 'absolute';
-  el.style.left = '-9999px';
-  document.body.appendChild(el);
+  const activeElement = document.activeElement;
   
-  // Set content and select
-  el.innerHTML = text;
-  el.unselectable = "off";
-  el.focus();
-  document.execCommand('selectAll');
-  
-  // Execute paste
-  document.execCommand('insertText', false, text);
-  
-  // Cleanup
-  document.body.removeChild(el);
+  // Handle different types of editable elements
+  if (activeElement.isContentEditable || 
+      activeElement.tagName === 'INPUT' || 
+      activeElement.tagName === 'TEXTAREA') {
+    
+    // For input fields and contentEditable elements
+    if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
+      // For standard input elements
+      const start = activeElement.selectionStart || 0;
+      const end = activeElement.selectionEnd || 0;
+      const beforeText = activeElement.value.substring(0, start);
+      const afterText = activeElement.value.substring(end);
+      
+      // Insert text at cursor position
+      activeElement.value = beforeText + text + afterText;
+      
+      // Move cursor after the inserted text
+      const newPosition = start + text.length;
+      activeElement.setSelectionRange(newPosition, newPosition);
+    } 
+    else if (activeElement.isContentEditable) {
+      // For contentEditable elements
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      
+      // Create text node and insert at cursor position
+      const textNode = document.createTextNode(text);
+      range.insertNode(textNode);
+      
+      // Move cursor after the inserted text
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  } 
+  else {
+    // Fallback for other contexts
+    // Try using document.execCommand (which works in many contexts)
+    try {
+      document.execCommand('insertText', false, text);
+    } catch (e) {
+      // If execCommand fails, try the clipboard API approach
+      const originalActiveElement = document.activeElement;
+      
+      // Create a temporary textarea, insert text, and copy to clipboard
+      const tempElement = document.createElement('textarea');
+      tempElement.value = text;
+      tempElement.style.position = 'fixed';
+      tempElement.style.left = '-9999px';
+      document.body.appendChild(tempElement);
+      tempElement.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempElement);
+      
+      // Focus back on the original element and paste
+      originalActiveElement.focus();
+      document.execCommand('paste');
+    }
+  }
 }
 
 function showNotification(message) {
