@@ -13,6 +13,7 @@
       padding: 8px;
       border: 1px solid #ccc;
       border-radius: 4px;
+      position: relative;
     }
     .key {
       font-weight: bold;
@@ -22,6 +23,30 @@
     .value {
       word-break: break-all;
       white-space: pre-wrap;
+      margin-bottom: 5px;
+    }
+    .timestamp {
+      font-size: 12px;
+      color: #888;
+      font-style: italic;
+    }
+    .expiry-warning {
+      font-size: 12px;
+      color: #cc0000;
+    }
+    .delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background-color: #ff3333;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 2px 5px;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      background-color: #cc0000;
     }
     .empty-message {
       color: #888;
@@ -38,6 +63,18 @@
       margin-bottom: 15px;
       font-size: 14px;
     }
+    .controls {
+      margin-bottom: 15px;
+      text-align: right;
+    }
+    .clear-all-btn {
+      background-color: #ff3333;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -49,7 +86,12 @@
       <li>Select text and press <strong>Ctrl+C</strong> then press any key to store the text</li>
       <li>To paste, press <strong>Ctrl+V</strong> then press the same key you used to store</li>
       <li>Press <strong>Ctrl+I</strong> anytime to see what's stored</li>
+      <li>Items are automatically deleted after 24 hours</li>
     </ul>
+  </div>
+  
+  <div class="controls">
+    <button id="clear-all-btn" class="clear-all-btn">Clear All</button>
   </div>
   
   <div id="clipboard-items"></div>
